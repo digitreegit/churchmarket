@@ -1,0 +1,123 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { BuyButton } from "@/components/buy-button";
+import { getSessionUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import {
+  formatPrice,
+  listingImageUrl,
+  listingStatusLabel,
+} from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
+
+export default async function ListingDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const user = await getSessionUser();
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("*, categories(*), listing_images(*)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!listing) notFound();
+
+  const images = (listing.listing_images || []).sort(
+    (a: { sort_order: number }, b: { sort_order: number }) =>
+      a.sort_order - b.sort_order,
+  );
+  const cover = listingImageUrl(
+    images[0]?.storage_path || listing.cover_image_path,
+  );
+  const canBuy =
+    listing.status === "available" && user?.id !== listing.seller_id;
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <Link href="/market" className="text-sm text-ink-muted hover:text-brand">
+        ← 장터
+      </Link>
+
+      <div className="mt-6 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-3">
+          <div className="aspect-[4/3] overflow-hidden rounded-lg bg-[linear-gradient(135deg,#dfe8e2,#f7f3ea)]">
+            {cover ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cover}
+                alt={listing.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-ink-muted">
+                No image
+              </div>
+            )}
+          </div>
+          {images.length > 1 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {images.map((img: { id: string; storage_path: string }) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={img.id}
+                  src={listingImageUrl(img.storage_path) || ""}
+                  alt=""
+                  className="aspect-square rounded-md object-cover"
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <p className="text-sm font-medium tracking-wide text-brand-soft uppercase">
+            {listing.categories?.name_ko}
+          </p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-brand">
+            {listing.title}
+          </h1>
+          <p className="mt-3 text-2xl font-semibold">
+            {formatPrice(listing.price_cents)}
+          </p>
+          <p className="mt-2 text-sm text-ink-muted">
+            상태: {listingStatusLabel(listing.status)}
+          </p>
+          <p className="mt-6 whitespace-pre-wrap leading-relaxed text-foreground">
+            {listing.description || "설명이 없습니다."}
+          </p>
+
+          <div className="mt-8 space-y-3 border-t border-brand/10 pt-6">
+            {listing.status === "sold" ? (
+              <p className="inline-flex rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white">
+                판매완료
+              </p>
+            ) : listing.status !== "available" ? (
+              <p className="text-sm font-medium text-brand">
+                이 물건은 현재 {listingStatusLabel(listing.status)} 상태입니다.
+              </p>
+            ) : !user ? (
+              <Link
+                href={`/login?next=/market/${listing.id}`}
+                className="inline-flex rounded-md bg-sun px-5 py-3 text-sm font-semibold text-[#1c2a1f]"
+              >
+                로그인 후 Buy
+              </Link>
+            ) : (
+              <BuyButton listingId={listing.id} disabled={!canBuy} />
+            )}
+            <p className="text-xs leading-relaxed text-ink-muted">
+              Buy 후 판매자는 다음 주 성당에 물건을 맡기고, 구매자는 관리자에게
+              현금 결제 후 픽업합니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

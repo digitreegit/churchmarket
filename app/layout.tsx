@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 const display = Fraunces({
@@ -14,9 +15,9 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Church Market | 성당 가라지 세일",
+  title: "Church Market | 성당 온라인 장터",
   description:
-    "성당 공동체와 함께하는 가라지 세일. 날짜, 장소, 참여 안내를 한눈에 확인하세요.",
+    "성당 공동체 온라인 가라지 세일. 물건을 올리고, 사고, 성당에서 픽업하세요.",
 };
 
 export default function RootLayout({
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${display.variable} ${body.variable} h-full`}>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
